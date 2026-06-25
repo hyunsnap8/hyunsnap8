@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>현스냅 셀렉 접수</title>
+<style>
+  :root{
+    --ink:#1d1d1f;          /* 기본 글자(애플 블랙) */
+    --paper:#f5f5f7;        /* 배경(애플 라이트 그레이) */
+    --card:#ffffff;
+    --line:#d2d2d7;         /* 얇은 경계선 */
+    --line-soft:#e8e8ed;    /* 더 옅은 구분선 */
+    --muted:#6e6e73;        /* 보조 글자 */
+    --blue:#0071e3;         /* 포인트(애플 블루) */
+    --blue-hover:#0077ed;
+    --ok:#1d9e5e;
+    --warn-bg:#f6f6f8;
+    --warn-line:#e6e6ea;
+    --warn-ink:#3a3a3c;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",
+      "Apple SD Gothic Neo","Pretendard","Malgun Gothic",system-ui,sans-serif;
+    background:var(--paper);color:var(--ink);
+    -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+    display:flex;align-items:flex-start;justify-content:center;
+    padding:56px 20px;line-height:1.5;
+    font-feature-settings:"tnum";
+  }
+
+  /* ---------- 카드 ---------- */
+  .card{
+    width:100%;max-width:960px;background:var(--card);
+    border:1px solid var(--line-soft);border-radius:20px;
+    padding:48px 44px;
+    box-shadow:0 1px 2px rgba(0,0,0,.04), 0 12px 40px rgba(0,0,0,.05);
+  }
+
+  /* 카드 + 우측 '빠른작업 옵션' 패널 나란히 */
+  .layout{display:flex;gap:22px;align-items:flex-start;justify-content:center;
+    flex-wrap:wrap;width:100%}
+  .sidecol{display:flex;flex-direction:column;gap:18px;flex:none;width:290px;position:sticky;top:24px}
+  .sidepanel{background:var(--card);
+    border:1px solid var(--line-soft);border-radius:20px;padding:24px 22px;
+    box-shadow:0 1px 2px rgba(0,0,0,.04),0 12px 40px rgba(0,0,0,.05)}
+  .sidepanel .sp-title{font-size:15px;font-weight:700;color:var(--ink);letter-spacing:-.01em;
+    display:flex;align-items:center;justify-content:center;gap:6px;word-break:keep-all}
+  .sidepanel .sp-title svg{color:var(--blue);flex:none}
+  .sidepanel .sp-sub{font-size:12.5px;color:var(--muted);margin:7px 0 16px;line-height:1.6;
+    text-align:center;word-break:keep-all;text-wrap:balance}
+  .sidepanel .options{margin:0;padding:0;border:none}
+  .sidepanel .sp-call{font-size:12.5px;color:var(--muted);line-height:1.5;margin:16px 0 10px;text-align:center}
+  .kakao{display:flex;align-items:center;justify-content:center;gap:7px;
+    padding:11px;border-radius:10px;background:#fff;border:1px solid var(--line);
+    color:var(--ink);font-weight:600;font-size:13.5px;text-decoration:none;transition:background .15s}
+  .kakao:hover{background:#f7f7f8}
+  body.mobile .sidecol{display:none}
+
+  /* 참고사진(셀카·웨딩 촬영본) 보내기 — 선택 */
+  .refbox{margin-top:16px;border:1px solid var(--line-soft);border-radius:14px;
+    padding:18px 20px;background:#fafbfc}
+  .ref-head{font-size:15px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .ref-opt{font-size:11px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:1px 9px}
+  .ref-desc{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px}
+  .ref-desc b{color:var(--ink);font-weight:600}
+  .ref-drop{padding:14px 20px}                 /* 참고사진 선택칸 높이 더 낮게 */
+  body.peach .refbox{background:#fdf6f0}
+
+  /* ---------- 헤더 ---------- */
+  .brand{
+    font-size:12px;letter-spacing:.22em;color:var(--muted);
+    font-weight:600;text-transform:uppercase;margin-bottom:26px;
+  }
+  .brand b{color:var(--ink);font-weight:700}
+  h1{
+    font-size:30px;font-weight:600;letter-spacing:-.02em;line-height:1.2;
+    margin-bottom:18px;
+  }
+  h1 .date{color:var(--muted);font-weight:500}
+  .intro{font-size:16px;color:var(--ink);line-height:1.65}
+  .intro .thanks{color:var(--muted);font-size:15px}
+
+  .rule{height:1px;background:var(--line-soft);border:none;margin:30px 0}
+
+  /* ---------- 안내사항 ---------- */
+  .notice{
+    border:1px solid var(--line-soft);border-radius:14px;overflow:hidden;
+  }
+  .notice .item{padding:13px 18px;border-top:1px solid var(--line-soft)}
+  .notice .item:first-child{border-top:none}
+  .notice .item h3{
+    font-size:13px;font-weight:600;color:var(--ink);
+    letter-spacing:-.01em;margin-bottom:5px;
+  }
+  .notice .item p{font-size:14px;color:var(--muted);line-height:1.62}
+  .notice .item b{color:var(--ink);font-weight:600}
+
+  /* ---------- 핵심 경고(파일명) ---------- */
+  .callout{
+    display:flex;gap:13px;align-items:flex-start;
+    padding:17px 19px;border-radius:14px;
+    background:var(--warn-bg);border:1px solid var(--warn-line);
+    margin:26px 0;
+  }
+  .callout svg{flex:none;margin-top:1px}
+  .callout .t1{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:3px}
+  .callout .t2{font-size:14px;color:var(--warn-ink);line-height:1.6}
+  .callout .t2 strong{font-weight:600;color:var(--ink)}
+  .callout .t2small{font-size:11.5px;color:var(--muted)}
+
+  /* 위쪽 핵심경고 2개 — 세로형 카드로 나란히 */
+  .callouts{display:flex;gap:12px;margin:26px 0;flex-wrap:wrap}
+  .callouts .callout{flex:1 1 0;min-width:210px;margin:0;flex-direction:column;align-items:flex-start;gap:9px}
+  /* 느낌표 옆 큰 제목 (느낌표 색·두껍게) */
+  .callout .chead{display:flex;align-items:center;gap:8px}
+  .callout .ctitle{font-size:15px;font-weight:700;color:var(--ink);letter-spacing:-.01em}
+  /* 규칙 문장 — 연한 글씨(굵게 없음) + 밑줄 */
+  .callout .t1u{font-size:14px;font-weight:400;color:var(--warn-ink);
+    text-decoration:underline;text-underline-offset:2px;margin-bottom:4px}
+  /* 위 두 박스 안 글자(밑줄 규칙 + 설명)는 검정 */
+  .callouts .callout .t1u{color:var(--ink)}  /* 밑줄 규칙 문장 */
+  .callouts .callout .t2{color:var(--ink)}  /* 설명 — 검정 */
+
+  /* ---------- 파일 선택 안내 ---------- */
+  .guide{font-size:14px;color:var(--muted);margin:0 0 14px;line-height:1.6;text-align:center}
+  .guide b{color:var(--ink);font-weight:600}
+
+  /* ---------- 파일 선택 영역 ---------- */
+  .drop{
+    display:block;border:1.5px dashed #c7c7cc;border-radius:16px;
+    padding:36px 20px;text-align:center;cursor:pointer;
+    transition:border-color .15s, background .15s;
+    background:#fcfcfd;
+  }
+  .drop:hover{border-color:var(--blue);background:#f7faff}
+  .drop .ico{
+    width:46px;height:46px;border-radius:50%;background:#f0f0f3;
+    display:flex;align-items:center;justify-content:center;
+    margin:0 auto 13px;
+  }
+  .drop .big{font-size:16px;font-weight:600;margin-bottom:4px}
+  .drop .small{font-size:13px;color:var(--muted)}
+  input[type=file]{display:none}
+
+  /* ---------- 선택 목록 ---------- */
+  .picked{margin-top:22px;display:none}
+  .picked.on{display:block}
+  .picked .head{
+    display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;
+  }
+  .picked .head .count{font-size:15px;font-weight:600}
+  .picked .head .count em{color:var(--blue);font-style:normal}
+  .picked .head button{
+    background:none;border:none;color:var(--muted);
+    font-size:13px;cursor:pointer;padding:4px 6px;border-radius:6px;
+  }
+  .picked .head button:hover{color:var(--ink);background:#f0f0f3}
+  .list{
+    max-height:200px;overflow:auto;
+    border:1px solid var(--line-soft);border-radius:12px;
+  }
+  .row{
+    display:flex;align-items:center;gap:10px;padding:10px 14px;
+    border-bottom:1px solid var(--line-soft);font-size:13px;
+  }
+  .row:last-child{border-bottom:none}
+  .row .name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .size{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+  .row .x{cursor:pointer;color:#b0b0b5;font-size:15px;padding:0 4px;line-height:1}
+  .row .x:hover{color:#d23b2c}
+
+  /* ---------- 제출 버튼(애플 블루 알약) ---------- */
+  .submit{
+    width:100%;margin-top:26px;padding:15px;border:none;border-radius:980px;
+    background:var(--blue);color:#fff;font-size:16px;font-weight:600;
+    cursor:pointer;transition:background .15s, opacity .15s;font-family:inherit;
+    letter-spacing:-.01em;
+  }
+  .submit:disabled{background:#c7c7cc;cursor:not-allowed}
+  .submit:not(:disabled):hover{background:var(--blue-hover)}
+
+  /* ---------- 접수 버튼 아래 안내문 ---------- */
+  .afternote{margin-top:24px;padding-top:20px;border-top:1px solid var(--line-soft)}
+  .afternote p{font-size:13.5px;color:var(--muted);line-height:1.65;margin-bottom:14px}
+  .afternote p:last-child{margin-bottom:0}
+  .afternote b{color:var(--ink);font-weight:600}
+  .afternote .ah{font-size:15px;font-weight:700}     /* 섹션 제목 조금 크게 */
+  .afternote .dur{font-size:14.5px;color:var(--ink)}
+  .afternote .dur strong{color:var(--blue);font-weight:700}
+  .afternote .dur .sub{color:var(--muted);font-size:12.5px}
+  .flowimg{display:block;width:100%;max-width:250px;height:auto;margin:8px auto 0}
+  /* 작업 순서 안내 (가로형 · 전체 폭) */
+  .floworder{margin-top:26px;padding-top:22px;border-top:1px solid var(--line-soft)}
+  .floworder .flow-title{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:14px}
+  .flowimg2{width:100%;height:auto;display:block}
+  /* 작업 순서 안내 (스네이크형 · 좌측 하단) */
+  .flowsnake{margin-top:22px}
+  .flowsnake .flow-title{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:12px}
+  .flowsnake svg{width:100%;max-width:420px;height:auto;display:block}
+  .col-left .afternote{margin-top:22px}
+
+  /* ---------- 넓은 2단 레이아웃 (PC) ---------- */
+  .cols{display:flex;gap:34px;align-items:flex-start;margin-top:4px}
+  .col{flex:1 1 0;min-width:0}
+  .col-right{display:flex;flex-direction:column}
+  .col-left .callouts{margin:0}
+  @media (max-width:840px){ .cols{flex-direction:column;gap:22px} }
+
+  /* 셀렉 방법 안내 버튼 (눈에 띄게) */
+  .howto{
+    display:flex;align-items:center;gap:10px;
+    padding:14px 18px;margin-bottom:18px;border-radius:12px;
+    background:#e6e6ec;color:var(--ink);text-decoration:none;
+    font-size:14.5px;font-weight:600;letter-spacing:-.01em;transition:background .15s;
+  }
+  .howto:hover{background:#dcdce3}
+  .howto svg{flex:none;color:var(--blue)}
+  .howto .arr{margin-left:auto}
+  .col-left .howto{margin:20px 0 0}
+
+  /* '사진 선택하기' 옆 클릭 커서 아이콘 (정지) */
+  .drop .big{display:flex;align-items:center;justify-content:center;gap:6px}
+  .drop .cursor-ic{color:var(--muted)}
+
+  /* ---------- 셀렉 장수 안내 박스 (확 튀게) ---------- */
+  .selguide{border:1px solid #e7d2da;border-radius:14px;overflow:hidden;
+    margin-bottom:20px;background:#f6ebef}   /* 약한 버건디 음영 */
+  .selguide .sg-head{background:#9e455e;color:#fff;font-size:13px;font-weight:700;
+    padding:10px 16px;letter-spacing:.04em;display:flex;align-items:center;gap:7px}
+  .selguide .sg-body{padding:16px 18px 18px}
+  /* 박스가 업로드~접수 버튼까지 감쌀 때, 업로드 영역 구분선 */
+  .selguide .sg-body .guide{margin-top:15px;padding-top:16px;border-top:1px dashed var(--line)}
+  .selguide .sg-product{font-size:13.5px;color:var(--ink);line-height:1.55}
+  .selguide .sg-product b{font-weight:700}
+  .selguide .sg-pick{font-size:16px;font-weight:700;color:#9e455e;margin-top:8px;line-height:1.45}
+  .selguide .sg-pick strong{font-size:20px;font-weight:800}
+  .selguide .sg-parts{list-style:none;margin-top:12px;padding-top:12px;
+    border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:6px}
+  .selguide .sg-parts li{font-size:13px;color:var(--ink);line-height:1.5;
+    display:flex;gap:7px;align-items:baseline}
+  .selguide .req{flex:none;font-size:11px;font-weight:700;color:var(--muted);
+    border:1px solid var(--line);background:#f0f0f3;border-radius:5px;padding:1px 6px}
+
+  /* 사진 업로드 안내 — 크게 + 밑줄 */
+  .guide .g-big{display:inline-block;font-size:18px;font-weight:700;color:#9e455e;margin-bottom:6px}
+  .guide .pickline{display:inline-block;font-size:14px;font-weight:600;color:#9e455e;line-height:1.5}
+  .guide .pickline strong{font-weight:700}
+  .guide .gsmall{display:inline-block;margin-top:6px;font-size:13px;color:var(--muted);line-height:1.5}
+
+  /* ---------- 옵션 안내 (셀렉 접수 버튼 아래) ---------- */
+  .options{margin-top:16px;padding-top:14px;border-top:1px solid var(--line-soft);
+    display:flex;flex-direction:column;gap:10px}
+  .opt{background:#f7f9fc;border:1px solid var(--line-soft);border-radius:10px;padding:13px 14px}
+  .opt-head{font-size:14px;font-weight:700;color:var(--ink)}
+  .opt-desc{font-size:12.5px;color:var(--muted);line-height:1.55;margin-top:5px}
+  .opt-price{margin-top:10px;padding-top:9px;border-top:1px dashed var(--line);
+    font-size:14px;font-weight:800;color:var(--blue)}
+  body.peach .opt{background:#fdf6f0}
+  .opt-desc .opt-note{display:inline-block;margin-top:3px;font-size:11.5px;color:var(--muted)}
+  .opt-price s{color:var(--muted);font-weight:500;margin-right:5px}
+  .sp-divider{height:1px;background:var(--line-soft);margin:22px 0}
+
+  /* ============ 피치스냅 전용 테마 (현스냅과 완전히 다른 느낌) ============ */
+  body.peach{
+    --ink:#33271f;          /* 따뜻한 브라운 글자 */
+    --paper:#f4e7dc;        /* 웜 피치-크림 배경 */
+    --card:#fffaf5;
+    --line:#e6d4c7;
+    --line-soft:#eee0d5;
+    --muted:#a08a7b;
+    --blue:#dd6a47;         /* 코랄 포인트 */
+    --blue-hover:#cc5c3b;
+  }
+  /* 상단 로고·브랜드 */
+  body.peach .brand{letter-spacing:.3em;color:#b07a64}
+  body.peach .brand b{color:#cf5f3d;font-weight:700}
+  /* 카드·버튼·입력영역을 각지게 → 애플풍과 정반대 */
+  body.peach .card{border-radius:4px;border-color:#ecdccf;
+    box-shadow:0 14px 36px rgba(120,60,30,.12)}
+  body.peach .submit{border-radius:4px}
+  body.peach .drop{background:#fdf6f0;border-color:#dcc6b7;border-radius:4px}
+  body.peach .drop:hover{background:#fdf1ea;border-color:var(--blue)}
+  body.peach .drop .ico{background:#f3e6db}
+  body.peach .list,
+  body.peach .callout{border-radius:4px}
+  /* 피치 전용: 현스냅의 버건디 요소를 코랄로 (느낌 완전히 다르게) */
+  body.peach .selguide{border-color:#f0cdbf;background:#fdf1ec;border-radius:4px}
+  body.peach .selguide .sg-head{background:#dd6a47}
+  body.peach .selguide .sg-pick,
+  body.peach .guide .g-big,
+  body.peach .guide .pickline,
+  body.peach .guide .pickline strong{color:#c85a3a}
+  body.peach .selguide .sg-body .guide{border-top-color:#f0d8cd}
+  body.peach .flowsnake rect{fill:#fdeee7;stroke:#f0cdbf}
+  body.peach .flowsnake .fl3{fill:#c85a3a}
+
+  /* ===== 돌스냅 전용 테마 (귀여운 파스텔 핑크) ===== */
+  body.dol{
+    --ink:#4a3a33; --paper:#fff5ef; --card:#fffdfb;
+    --line:#f1ddd0; --line-soft:#f6e8df; --muted:#9c877b;
+    --blue:#ee7088; --blue-hover:#e96080;
+  }
+  body.dol .brand b{color:#e35c7e}
+  body.dol .submit{border-radius:980px}      /* 동글동글 버튼 */
+  body.dol .howto{display:none}              /* 셀렉 방법 보기 없음 (웨딩 전용) */
+  body.dol .refbox{display:none}             /* 셀카/웨딩 참고사진 없음 */
+  body.dol .selguide{border-color:#f5cdd6;background:#fdeef2}
+  body.dol .selguide .sg-head{background:#ee7088}
+  body.dol .selguide .sg-pick,
+  body.dol .guide .g-big,
+  body.dol .guide .pickline,
+  body.dol .guide .pickline strong{color:#d05373}
+  body.dol .selguide .sg-body .guide{border-top-color:#f3d6de}
+  body.dol .flowsnake rect{fill:#fdeef2;stroke:#f5cdd6}
+  body.dol .flowsnake .fl3{fill:#d05373}
+
+  /* ---------- 완료 화면 ---------- */
+  .done{display:none;text-align:center;padding:24px 0 10px}
+  .done.on{display:block}
+  .done .check{
+    width:64px;height:64px;border-radius:50%;background:var(--ok);
+    color:#fff;display:flex;align-items:center;justify-content:center;
+    margin:0 auto 20px;
+  }
+  .done h2{font-size:24px;font-weight:600;letter-spacing:-.02em;margin-bottom:9px}
+  .done p{color:var(--muted);font-size:15px;line-height:1.6}
+
+  /* ---------- 모바일 차단 ---------- */
+  .block{display:none;text-align:center;padding:20px 6px}
+  .block .ico{
+    width:56px;height:56px;border-radius:50%;background:#f0f0f3;
+    display:flex;align-items:center;justify-content:center;margin:0 auto 18px;
+  }
+  .block h2{font-size:20px;font-weight:600;letter-spacing:-.01em;margin-bottom:11px}
+  .block p{color:var(--muted);font-size:15px;line-height:1.65}
+  body.mobile .card-inner{display:none}
+  body.mobile .block{display:block}
+
+  @media (max-width:560px){
+    body{padding:24px 14px}
+    .card{padding:34px 24px;border-radius:18px}
+    h1{font-size:25px}
+  }
+</style>
+</head>
+<body>
+  <div class="layout">
+  <div class="card">
+    <!-- ===== PC 화면 ===== -->
+    <div class="card-inner">
+      <div id="formArea">
+        <div class="brand"><b id="vBrand">HYUNSNAP</b> · <span id="vType">신부</span> 셀렉 접수</div>
+
+        <h1><span class="date" id="vDate">000000</span>, <span id="vName">000</span>님</h1>
+        <div class="intro">
+          <p class="thanks">특별한 날, 현스냅을 초대해주셔서 감사했습니다.</p>
+          <p>셀렉하신 사진을 보내주세요.</p>
+        </div>
+
+        <hr class="rule">
+
+        <div class="cols">
+          <!-- ◀ 좌측: 주의사항 -->
+          <div class="col col-left">
+            <!-- 핵심 경고 2개 (세로형 카드) -->
+            <div class="callouts">
+              <!-- 파일명 -->
+              <div class="callout">
+                <div class="chead">
+                  <svg width="21" height="21" viewBox="0 0 20 20" fill="none">
+                    <circle cx="10" cy="10" r="9" fill="#86868b"/>
+                    <path d="M10 5.2v5.4" stroke="#fff" stroke-width="1.9" stroke-linecap="round"/>
+                    <circle cx="10" cy="14.2" r="1.05" fill="#fff"/>
+                  </svg>
+                  <span class="ctitle">파일명 규칙</span>
+                </div>
+                <div>
+                  <div class="t1u">파일명을 절대로 바꾸지 마세요</div>
+                  <div class="t2">셀렉은 모두 자동화 설계로, 파일명이 바뀌면 작업이 시작되지 않습니다.</div>
+                </div>
+              </div>
+              <!-- 셀렉 기한 -->
+              <div class="callout">
+                <div class="chead">
+                  <svg width="21" height="21" viewBox="0 0 20 20" fill="none">
+                    <circle cx="10" cy="10" r="9" fill="#86868b"/>
+                    <path d="M10 5.2v5.4" stroke="#fff" stroke-width="1.9" stroke-linecap="round"/>
+                    <circle cx="10" cy="14.2" r="1.05" fill="#fff"/>
+                  </svg>
+                  <span class="ctitle">셀렉 접수 기한</span>
+                </div>
+                <div>
+                  <div class="t1u">예식일 이후 3개월까지 접수 가능</div>
+                  <div class="t2">기한이 지나면 접수가 제한되며, 재작업 비용(20만원)이 발생할 수 있습니다. (약관 참조)</div>
+                </div>
+              </div>
+              <!-- 사진 교체 안내 -->
+              <div class="callout">
+                <div class="chead">
+                  <svg width="21" height="21" viewBox="0 0 20 20" fill="none">
+                    <circle cx="10" cy="10" r="9" fill="#86868b"/>
+                    <path d="M10 5.2v5.4" stroke="#fff" stroke-width="1.9" stroke-linecap="round"/>
+                    <circle cx="10" cy="14.2" r="1.05" fill="#fff"/>
+                  </svg>
+                  <span class="ctitle">사진 교체 비용</span>
+                </div>
+                <div>
+                  <div class="t1u">★ 눈 감은 사진도 그대로 작업됩니다</div>
+                  <div class="t2">셀렉된 사진은 파일명 매칭으로 진행돼요.<br><span class="t2small">*추후 사진 교체 시 비용 발생합니다</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 앨범 제작 안내 / 작업 기간 (좌측) -->
+            <div class="afternote">
+              <p id="albumNote"><b class="ah">앨범 제작 안내</b><br>셀렉 순서·넘김이 자연스러워야 완성도가 올라가요. (데이터형 제외)<br>아래 링크에서 <b>셀렉 방법</b>을 확인해주세요.</p>
+
+              <p class="dur"><b class="ah">작업 기간</b><br>셀렉 순서대로 진행 · <strong id="durTxt">셀렉일로부터 약 8개월</strong> 소요.<br><span class="sub">셀렉이 몰리는 달에는 2주가량 더 소요될 수 있어요</span></p>
+            </div>
+
+            <!-- 셀렉 방법 안내 버튼 (분홍·튀게) — 몇 장 골라야 할지 막막할 때 -->
+            <a class="howto" href="https://blog.naver.com/hyunsnap_/223672211066" target="_blank" rel="noopener">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2z"/>
+                <path d="M12 6.5v13"/>
+              </svg>
+              <span>사진 셀렉하는 방법 보기</span>
+              <svg class="arr" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+
+            <!-- 작업 순서 안내 (스네이크형) -->
+            <div class="flowsnake">
+              <p class="flow-title">작업 순서 안내</p>
+              <svg viewBox="0 0 420 168" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="작업 순서: 셀렉 → 색감작업 → 1차컨펌 → 2차컨펌 → 앨범제작 → 택배발송">
+                <style>
+                  .fn3{font:600 13px "Apple SD Gothic Neo","Malgun Gothic",sans-serif;fill:#3a2730}
+                  .fl3{font:700 11.5px "Apple SD Gothic Neo","Malgun Gothic",sans-serif;fill:#9e455e}
+                </style>
+                <rect x="8"   y="20"  width="112" height="34" rx="17" fill="#f7eef2" stroke="#e6cfd8"/>
+                <text class="fn3" x="64"  y="42"  text-anchor="middle">셀렉</text>
+                <rect x="144" y="20"  width="112" height="34" rx="17" fill="#f7eef2" stroke="#e6cfd8"/>
+                <text class="fn3" x="200" y="42"  text-anchor="middle">색감 작업</text>
+                <rect x="280" y="20"  width="112" height="34" rx="17" fill="#f1dee6" stroke="#debecb"/>
+                <text class="fn3" x="336" y="42"  text-anchor="middle">1차 컨펌</text>
+                <rect x="280" y="104" width="112" height="34" rx="17" fill="#f1dee6" stroke="#debecb"/>
+                <text class="fn3" x="336" y="126" text-anchor="middle">2차 컨펌</text>
+                <rect x="144" y="104" width="112" height="34" rx="17" fill="#f7eef2" stroke="#e6cfd8"/>
+                <text class="fn3" x="200" y="126" text-anchor="middle">앨범 제작</text>
+                <rect x="8"   y="104" width="112" height="34" rx="17" fill="#f7eef2" stroke="#e6cfd8"/>
+                <text class="fn3" x="64"  y="126" text-anchor="middle">택배 발송</text>
+                <g stroke="#caa9b4" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M120 37 H138 M134 33 L140 37 L134 41"/>
+                  <path d="M256 37 H274 M270 33 L276 37 L270 41"/>
+                  <path d="M336 54 V98 M332 94 L336 100 L340 94"/>
+                  <path d="M280 121 H262 M266 117 L260 121 L266 125"/>
+                  <path d="M144 121 H126 M130 117 L124 121 L130 125"/>
+                </g>
+                <text class="fl3" id="flowDur1" x="200" y="78"  text-anchor="middle">약 8개월</text>
+                <text class="fl3" id="flowDur2" x="348" y="82"  text-anchor="start">최대 3개월</text>
+                <text class="fl3" x="132" y="158" text-anchor="middle">2주</text>
+              </svg>
+            </div>
+          </div>
+
+          <!-- ▶ 우측: 접수 액션 -->
+          <div class="col col-right">
+            <!-- 셀렉 장수 안내 (우측 상단) -->
+            <div class="selguide" id="selguide">
+              <div class="sg-head">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.6 6.3L21 9l-5 4.3L17.5 21 12 17.3 6.5 21 8 13.3 3 9l6.4-.7z"/></svg>
+                셀렉 장수 안내
+              </div>
+              <div class="sg-body">
+                <div class="sg-main" id="sgMain"></div>
+                <ul class="sg-parts" id="sgParts"></ul>
+
+            <p class="guide"><span class="g-big">셀렉하신 사진을 업로드해주세요.</span><br><span class="pickline" id="pickLine"></span><br><span class="gsmall">압축할 필요 없이 여러 장을 한 번에 선택해주세요.</span></p>
+
+            <label class="drop" id="drop">
+              <div class="ico">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <rect x="3" y="5" width="18" height="14" rx="2.5" stroke="#86868b" stroke-width="1.5"/>
+                  <circle cx="8.5" cy="10" r="1.6" fill="#86868b"/>
+                  <path d="M4 17l4.5-4.5 3.5 3.5 3-3 5 5" stroke="#86868b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="big">사진 선택하기
+                <svg class="cursor-ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l7.07 17 2.51-7.39L20 10.07 3 3z"/></svg>
+              </div>
+              <input type="file" id="file" accept="image/jpeg,.jpg,.jpeg" multiple>
+            </label>
+
+            <div class="picked" id="picked">
+              <div class="head">
+                <div class="count">선택한 사진 <em id="cnt">0</em>장</div>
+                <button id="clear">모두 지우기</button>
+              </div>
+              <div class="list" id="list"></div>
+            </div>
+
+            <button class="submit" id="send" disabled>셀렉 접수하기</button>
+              </div>
+            </div>
+
+            <!-- 참고사진(셀카·프사·웨딩촬영) 보내기 (선택) -->
+            <div class="refbox">
+              <div class="ref-head">셀카 · 웨딩 촬영본 보내기 <span class="ref-opt">선택</span></div>
+              <p class="ref-desc">보정의 <b>방향 참고용</b>이에요. 셀카/웨딩 사진 <b>5장 정도</b>면 충분하고, 안 보내셔도 접수에 지장 없습니다.</p>
+              <label class="drop ref-drop" id="refDrop">
+                <div class="ico">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                    <rect x="3" y="5" width="18" height="14" rx="2.5" stroke="#86868b" stroke-width="1.5"/>
+                    <circle cx="8.5" cy="10" r="1.6" fill="#86868b"/>
+                    <path d="M4 17l4.5-4.5 3.5 3.5 3-3 5 5" stroke="#86868b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </div>
+                <div class="big">보정 참고사진 선택하기</div>
+                <div class="small">셀카 · 프사 · 웨딩촬영 · 선택사항</div>
+                <input type="file" id="refFile" accept="image/*" multiple>
+              </label>
+              <div class="picked" id="refPicked">
+                <div class="head">
+                  <div class="count">참고 사진 <em id="refCnt">0</em>장</div>
+                  <button id="refClear">모두 지우기</button>
+                </div>
+                <div class="list" id="refList"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 완료 화면 -->
+      <div class="done" id="done">
+        <div class="check">
+          <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+            <path d="M8 15.5l4.5 4.5L22 10" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h2 id="doneName">접수 완료</h2>
+        <p id="doneMsg"></p>
+      </div>
+    </div>
+
+    <!-- ===== 모바일 차단 화면 ===== -->
+    <div class="block">
+      <div class="ico">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="4" width="18" height="12" rx="2" stroke="#86868b" stroke-width="1.5"/>
+          <path d="M8 20h8M12 16v4" stroke="#86868b" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h2>특별한 날, 현스냅</h2>
+      <p><b>PC에서만 셀렉이 가능합니다.</b><br>컴퓨터로 이 링크를 다시 열어주세요.</p>
+    </div>
+  </div>
+
+  <!-- ===== 우측: 빠른작업 옵션 / 액자 제작 (각각 박스) ===== -->
+  <div class="sidecol">
+    <aside class="sidepanel" id="fastPanel">
+      <div class="sp-title"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 4.5 13.5H11l-1 8.5L19.5 10H13z"/></svg>빠른작업 옵션 안내</div>
+      <div class="sp-sub">앨범이나 보정본을 누구보다 빠르게 받아보실 수 있는 유료 옵션입니다.</div>
+      <div class="options">
+        <div class="opt">
+          <div class="opt-head">All pass 옵션</div>
+          <div class="opt-desc">현스냅 셀렉 → 컨펌 → 앨범까지<br>2주 내 완성<br><span class="opt-note">* 컨펌 횟수가 늘어나면 시간이 추가될 수 있어요</span></div>
+          <div class="opt-price">20만원</div>
+        </div>
+        <div class="opt">
+          <div class="opt-head">급작업 옵션</div>
+          <div class="opt-desc">신부 셀렉 후 10 영업일 내 보정본 확인<br><span class="opt-note">(컨펌 완료 후 2주 내 앨범까지)</span></div>
+          <div class="opt-price">15만원</div>
+        </div>
+      </div>
+      <div class="sp-call">진행을 원하시면 상담원에게 말씀해주세요.</div>
+      <a class="kakao" id="kakaoLink" href="http://pf.kakao.com/_xaCKvd/chat" target="_blank" rel="noopener">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.5C6.8 3.5 2.5 6.9 2.5 11c0 2.6 1.8 4.9 4.4 6.3-.2.7-.7 2.5-.8 2.9-.1.4.2.4.4.3.2-.1 2.5-1.7 3.5-2.4.6.1 1.1.1 1.5.1 5.2 0 9.5-3.4 9.5-7.5S17.2 3.5 12 3.5z"/></svg>
+        카카오톡 상담하기
+      </a>
+    </aside>
+
+    <aside class="sidepanel" id="framePanel">
+      <div class="sp-title"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zm2 0v10l4-4 3 3 3-3 4 4V5H5z"/></svg>액자 제작 안내</div>
+      <div class="sp-sub">현스냅 고객을 위한 1회 할인</div>
+      <div class="options">
+        <div class="opt">
+          <div class="opt-head">9분할 인테리어 액자 · 20×30인치</div>
+          <div class="opt-price"><s>16만원</s> 8만원</div>
+        </div>
+        <div class="opt">
+          <div class="opt-head">원판 액자 1개</div>
+          <div class="opt-price">8만원</div>
+        </div>
+      </div>
+      <div class="sp-call">딱 1회, 현스냅 고객에게만 제공하는.<br>네모프레임에서 액자를 보신 뒤<br>진행을 원하시면 말씀해주세요.</div>
+      <a class="kakao" href="https://smartstore.naver.com/nemoframe" target="_blank" rel="noopener">네모프레임 스토어 바로가기</a>
+    </aside>
+  </div>
+  </div>
+
+<script>
+/* ===================================================================
+   ※ 나중에 이 한 줄만 바꾸면 실제 전송됩니다 (지금은 비워두면 미리보기 모드)
+   앱스스크립트 웹앱 주소를 따옴표 안에 붙여넣으세요.
+=================================================================== */
+const 전송주소 = "https://script.google.com/macros/s/AKfycbz_pCz-dPYuugsO3OXQyD4o7KrlhCz0ZBC141-UO4S3TSHL0YV4A2UU6WlwlxdDmQph/exec";   // 예: "https://script.google.com/macros/s/..../exec"
+
+/* ---------- 1. 모바일이면 차단 ---------- */
+(function(){
+  const ua = navigator.userAgent;
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod|Tablet/i.test(ua);
+  if (isMobile || window.innerWidth < 820) document.body.classList.add('mobile');
+})();
+
+/* ---------- 2. 링크에서 손님 정보 자동 입력 ---------- */
+const q = new URLSearchParams(location.search);
+const 이름   = q.get('name') || '홍길동';      // 링크 없으면 예시값
+const 촬영일 = q.get('date') || '2026-02-20';
+const 접수번호 = q.get('no')   || '260220-hong';
+const 종류   = q.get('type') || '';            // 돌 / 신부 / 피치 구분 (예: ?type=돌)
+
+// 종류 라벨 — '돌'·'피치'가 분명할 때만 그쪽, 그 외엔 신부
+let 분류라벨 = '신부';
+if (/돌|dol|baby|first/i.test(종류))      분류라벨 = '돌';
+else if (/피치|peach|pitch/i.test(종류))  분류라벨 = '피치';
+document.getElementById('vType').textContent = 분류라벨;
+
+// 피치스냅 — 색상 테마 변경 + 작업기간 6개월
+if (분류라벨 === '피치'){
+  document.body.classList.add('peach');
+  document.getElementById('vBrand').textContent = 'PEACHSNAP';
+  const d = document.getElementById('durTxt');
+  if (d) d.textContent = '셀렉일로부터 약 6개월';
+  // 작업 순서 첫 구간(셀렉~1차컨펌)도 6개월
+  const f1 = document.getElementById('flowDur1');
+  if (f1) f1.textContent = '약 6개월';
+  // 피치 전용 카카오 상담 링크
+  const k = document.getElementById('kakaoLink');
+  if (k) k.href = 'http://pf.kakao.com/_xiApIn/chat';
+  // 화면의 모든 '현스냅' → '피치스냅'
+  [document.getElementById('formArea'), document.querySelector('.sidecol')].forEach(root=>{
+    if (!root) return;
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let n; while (n = w.nextNode()){
+      if (n.nodeValue.indexOf('현스냅') >= 0) n.nodeValue = n.nodeValue.replace(/현스냅/g, '피치스냅');
+    }
+  });
+}
+
+/* ---------- 돌스냅 전용 ---------- */
+if (분류라벨 === '돌'){
+  document.body.classList.add('dol');
+  // 인사말 (아기 첫 생일)
+  const th = document.querySelector('.intro .thanks');
+  if (th) th.textContent = '우리 아이의 첫 생일날, 현스냅 이모와 삼촌을 초대해주셔서 감사했습니다.';
+  // 작업기간 3~4개월
+  const d = document.getElementById('durTxt');
+  if (d) d.textContent = '셀렉일로부터 3~4개월';
+  // 작업 순서 기간
+  const f1 = document.getElementById('flowDur1'); if (f1) f1.textContent = '약 3~4개월';
+  const f2 = document.getElementById('flowDur2'); if (f2) f2.textContent = '최대 2개월';
+  // 앨범 제작 안내 (좌측) — 기본 안내
+  const al = document.getElementById('albumNote');
+  if (al) al.innerHTML = '<b class="ah">앨범 제작 안내</b><br>셀렉 순서·넘김이 자연스러워야 앨범 완성도가 올라가요.';
+  // 빠른작업 옵션 패널 → 앨범 업그레이드 안내 (옵션 2개 제거)
+  const fp = document.getElementById('fastPanel');
+  if (fp) fp.innerHTML =
+    '<div class="sp-title">앨범 업그레이드 안내</div>' +
+    '<div class="opt"><div class="opt-head">인화형 → 앨범형 업그레이드</div><div class="opt-price">+8만원</div></div>' +
+    '<div class="sp-call">현스냅 상담원에게 말씀해주세요.</div>' +
+    '<a class="kakao" href="http://pf.kakao.com/_xaCKvd/chat" target="_blank" rel="noopener"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.5C6.8 3.5 2.5 6.9 2.5 11c0 2.6 1.8 4.9 4.4 6.3-.2.7-.7 2.5-.8 2.9-.1.4.2.4.4.3.2-.1 2.5-1.7 3.5-2.4.6.1 1.1.1 1.5.1 5.2 0 9.5-3.4 9.5-7.5S17.2 3.5 12 3.5z"/></svg>카카오톡 상담하기</a>';
+  // 액자 제작 안내 패널 → 1개 50% 할인
+  const frp = document.getElementById('framePanel');
+  if (frp) frp.innerHTML =
+    '<div class="sp-title">액자 제작 안내</div>' +
+    '<div class="sp-sub">딱 1개만, 50% 할인 판매합니다.</div>' +
+    '<a class="kakao" href="https://smartstore.naver.com/nemoframe" target="_blank" rel="noopener">네모프레임 스토어 바로가기</a>';
+  // 예식일 → 행사일
+  const root = document.getElementById('formArea');
+  if (root){
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let n; while (n = w.nextNode()){
+      if (n.nodeValue.indexOf('예식일') >= 0) n.nodeValue = n.nodeValue.replace(/예식일/g, '행사일');
+    }
+  }
+}
+
+/* ---------- 셀렉 장수 안내 (신청 상품 기준 · 되묻지 않음) ----------
+   링크에 count(보정 매수)·product(상품명)을 실어 보내면 자동 표시됩니다.
+   예) ...&count=60&product=60p 스냅앨범 1권, 원판앨범 0권, 보정본 60매 */
+const 보정매수 = q.get('count') || '60';
+const 상품명   = q.get('product') || ('60p 스냅앨범 1권, 원판앨범 0권, 보정본 ' + 보정매수 + '매');
+
+(function(){
+  const n = parseInt(String(보정매수).replace(/\D/g, ''), 10);
+
+  document.getElementById('sgMain').innerHTML =
+    '<div class="sg-product">' + 이름 + '님이 신청하신 상품은<br><b>' + 상품명 + '</b> 입니다.</div>';
+
+  // 업로드 안내 아래 '셀렉 장수' 한 줄 (버건디)
+  const pl = document.getElementById('pickLine');
+  if (pl){
+    pl.innerHTML = isNaN(n)
+      ? '셀렉하신 사진을 골라주세요.'
+      : 이름 + '님의 보정본 개수에 맞추어 <strong>' + n + '장</strong>을 셀렉해주세요.';
+  }
+
+  // 파트별 안내 (현스냅·신부 셀렉에만 표시)
+  const parts = document.getElementById('sgParts');
+  if (분류라벨 === '신부'){
+    parts.innerHTML =
+        '<li><span class="req">의무</span><span>신부대기실 <b>8~20장</b></span></li>'
+      + '<li><span class="req">의무</span><span>원판 <b>8~10장</b> (없으면 본식)</span></li>'
+      + '<li><span>나머지 모두 본식·로비</span></li>';
+  } else {
+    parts.style.display = 'none';   // 돌·피치는 파트 안내 생략
+  }
+})();
+
+// 행사날짜를 6자리(YYMMDD)로 표시 — 돌스냅·웨딩스냅 공통
+function 여섯자리날짜(s){
+  const d = String(s).replace(/\D/g,'');
+  if (d.length === 8) return d.slice(2);   // YYYYMMDD → YYMMDD
+  if (d.length === 6) return d;            // 이미 YYMMDD
+  return String(s);                        // 그 외엔 받은 그대로
+}
+const 표시날짜 = 여섯자리날짜(촬영일);
+
+document.getElementById('vDate').textContent = 표시날짜;
+document.getElementById('vName').textContent = 이름;
+document.title = '현스냅 셀렉 · ' + 이름;
+
+/* ---------- 3. 파일 선택 ---------- */
+let files = [];
+const $ = id => document.getElementById(id);
+
+$('file').addEventListener('change', e=>{
+  for (const f of e.target.files){
+    if (!files.some(x=>x.name===f.name && x.size===f.size)) files.push(f);
+  }
+  e.target.value = '';
+  render();
+});
+
+function render(){
+  $('picked').classList.toggle('on', files.length>0);
+  $('cnt').textContent = files.length;
+  $('send').disabled = files.length===0;
+  $('list').innerHTML = files.map((f,i)=>`
+    <div class="row">
+      <span class="name">${f.name}</span>
+      <span class="size">${(f.size/1048576).toFixed(1)}MB</span>
+      <span class="x" data-i="${i}">✕</span>
+    </div>`).join('');
+  $('list').querySelectorAll('.x').forEach(b=>{
+    b.onclick = ()=>{ files.splice(+b.dataset.i,1); render(); };
+  });
+}
+$('clear').onclick = ()=>{ files=[]; render(); };
+
+/* ---------- 사진 선택하기 누르면 1회 안내창 ---------- */
+let 교체안내표시 = false;
+$('drop').addEventListener('click', (e)=>{
+  if (!교체안내표시){
+    e.preventDefault();                       // 안내 먼저, 그다음 파일창
+    교체안내표시 = true;
+    alert('눈 감은 사진이 셀렉되더라도 작업이 진행되며, 추후 사진 교체 시 비용이 발생합니다.');
+    $('file').click();
+  }
+});
+
+/* ---------- 참고사진(셀카·웨딩본) 선택 — 선택사항 ---------- */
+let refFiles = [];
+$('refFile').addEventListener('change', e=>{
+  for (const f of e.target.files){
+    if (!refFiles.some(x=>x.name===f.name && x.size===f.size)) refFiles.push(f);
+  }
+  e.target.value = '';
+  renderRef();
+});
+function renderRef(){
+  $('refPicked').classList.toggle('on', refFiles.length>0);
+  $('refCnt').textContent = refFiles.length;
+  $('refList').innerHTML = refFiles.map((f,i)=>`
+    <div class="row">
+      <span class="name">${f.name}</span>
+      <span class="size">${(f.size/1048576).toFixed(1)}MB</span>
+      <span class="x" data-i="${i}">✕</span>
+    </div>`).join('');
+  $('refList').querySelectorAll('.x').forEach(b=>{
+    b.onclick = ()=>{ refFiles.splice(+b.dataset.i,1); renderRef(); };
+  });
+}
+$('refClear').onclick = ()=>{ refFiles=[]; renderRef(); };
+
+/* ---------- 파일 → base64 (앱스스크립트는 이 방식으로만 사진을 받습니다) ---------- */
+async function 파일을base64로(file){
+  const buf = await file.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  const chunk = 0x8000;                       // 큰 파일도 안전하게 조각내서 변환
+  for (let i = 0; i < bytes.length; i += chunk){
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+/* ---------- 4. 접수하기 ---------- */
+$('send').onclick = async ()=>{
+  $('send').disabled = true;
+  $('send').textContent = '접수 중…';
+
+  if (전송주소){
+    // 실제 전송 — 사진을 한 장씩 차례로 보냅니다 (큰 용량도 안정적)
+    try{
+      for (let i = 0; i < files.length; i++){
+        const f = files[i];
+        const b64 = await 파일을base64로(f);
+        await fetch(전송주소, {
+          method: 'POST',
+          mode: 'no-cors',                      // 앱스스크립트 업로드용
+          headers: {'Content-Type': 'text/plain;charset=utf-8'},
+          body: JSON.stringify({
+            type: 분류라벨,                      // 돌 / 신부
+            name: 이름, date: 촬영일, no: 접수번호,
+            filename: f.name, b64: b64,
+            index: i + 1, total: files.length
+          })
+        });
+        $('send').textContent = `접수 중… (${i + 1}/${files.length})`;
+      }
+      // 참고사진(선택) — '참고사진' 하위폴더로 저장
+      for (let i = 0; i < refFiles.length; i++){
+        const f = refFiles[i];
+        const b64 = await 파일을base64로(f);
+        await fetch(전송주소, {
+          method: 'POST', mode: 'no-cors',
+          headers: {'Content-Type': 'text/plain;charset=utf-8'},
+          body: JSON.stringify({
+            type: 분류라벨, name: 이름, date: 촬영일, no: 접수번호,
+            filename: f.name, b64: b64, sub: '참고사진',
+            index: i + 1, total: refFiles.length
+          })
+        });
+        $('send').textContent = `참고사진 전송 중… (${i + 1}/${refFiles.length})`;
+      }
+    }catch(err){
+      alert('전송 중 문제가 생겼어요. 다시 시도해주세요.');
+      $('send').disabled=false; $('send').textContent='셀렉 접수하기'; return;
+    }
+  } else {
+    // 미리보기 모드 (전송주소 비어있을 때) — 잠깐 기다리는 척
+    await new Promise(r=>setTimeout(r, 700));
+  }
+
+  // 완료 화면 표시
+  $('formArea').style.display = 'none';
+  $('done').classList.add('on');
+  $('doneName').textContent = 이름 + '님, 셀렉 접수가 완료되었습니다';
+  $('doneMsg').textContent  = '고른 사진 ' + files.length + '장을 잘 받았습니다. 셀렉 순서대로 작업하여 회신드리겠습니다.';
+};
+</script>
+</body>
+</html>
